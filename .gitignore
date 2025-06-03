@@ -1,0 +1,75 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Added by AI: Common Android ignores
+
+# Built application files
+*.apk
+*.aab
+
+# Files for the Dalvik VM
+*.dex
+
+# Files for the ART VM
+*.oat
+*.art
+
+# Folder for aapt2-generated files
+build/
+
+# Gradle files
+.gradle/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# IntelliJ project files
+.idea/
+# Except for the following files, which should be kept in version control:
+!/.idea/workspace.xml
+!/.idea/tasks.xml
+!/.idea/gradle.xml
+!/.idea/dictionaries
+!/.idea/libraries
+!/.idea/modules.xml
+!/.idea/runConfigurations.xml
+
+# External native build files
+.externalNativeBuild/
+.cxx/
+
+# Lint results
+lint-results.html
+lint-results.xml
+
+# Room auto-generated schemas
+**/schemas/
+
+# Crashlytics build ID (Fabric) and API key
+crashlytics-build.properties
+
+# Kotlin multiplatform mobile project files
+.kmm/
+
+# Android Studio profiler snapshots
+*.hprof
+*.trace
+
+# Keystore files
+# *.jks
+# *.keystore
+
+# Any other files you want to ignore can be added here
