@@ -86,4 +86,7 @@ dependencies {
 
     // Add Coil dependency for image loading
     implementation(libs.coil.compose)
+
+    // Add ExoPlayer dependency for video playback
+    implementation(libs.exoplayer)
 }

@@ -69,6 +69,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult // Import for
 import androidx.compose.material3.TextButton // Import TextButton for the new button
 import coil.compose.rememberAsyncImagePainter // Import coil for image loading
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
@@ -169,33 +171,18 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
-            // Top Section: Logo and Camera Preview
+            // Section 1: Top bar with Logo Button and Camera Preview
             Box(modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.7f)
+                .fillMaxHeight(0.15f) // Adjust height as needed
                 .align(Alignment.TopCenter)
+                .padding(16.dp)
             ) {
-                // Logo
-                val painter = rememberAsyncImagePainter(
-                    model = selectedImageUri ?: R.drawable.logo
-                )
-
-                Image(
-                    painter = painter,
-                    contentDescription = "App Logo",
-                    modifier = Modifier
-                        .size(200.dp)
-                        .align(Alignment.Center)
-                        .padding(top = 40.dp)
-                )
-
-                Button(
+                 Button(
                     onClick = {
                         imagePickerLauncher.launch("image/*")
                     },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(16.dp),
+                    modifier = Modifier.align(Alignment.CenterStart), // Align to the start of the top box
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFFF5722)
                     ),
@@ -214,20 +201,39 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 // Camera Preview
                 CameraPreview(
                     modifier = Modifier
-                        .size(120.dp, 160.dp)
-                        .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 8.dp),
+                        .size(120.dp, 160.dp) // Keep camera preview small
+                        .align(Alignment.CenterEnd), // Align to the end of the top box
                     onCameraError = { error ->
                         description = "摄像头错误: $error"
                     }
                 )
             }
 
-            // Bottom content
+            // Section 2: Main Logo Image (Red Boxed Area)
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.6f) // Adjust height to fit between top and bottom sections
+                .align(Alignment.Center) // Center the large image box
+            ) {
+                val painter = rememberAsyncImagePainter(
+                    model = selectedImageUri ?: R.drawable.logo
+                )
+
+                Image(
+                    painter = painter,
+                    contentDescription = "App Logo",
+                    modifier = Modifier
+                        .fillMaxSize() // Make the image fill this middle box
+                        .align(Alignment.Center), // Center the image within the box
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit // Or .Crop, experiment to see which fits better
+                )
+            }
+
+            // Section 3: Bottom content (Description Card and Button)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.3f)
+                    .fillMaxHeight(0.25f)
                     .align(Alignment.BottomCenter)
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -237,7 +243,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
                     colors = CardDefaults.cardColors(
                         containerColor = Color(0xFF1E1E1E)
                     ),
@@ -246,7 +253,9 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     )
                 ) {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         if (isProcessing) {
@@ -258,9 +267,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                         Text(
                             text = description,
                             color = Color.White,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.Medium
                         )
