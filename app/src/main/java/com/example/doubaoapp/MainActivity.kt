@@ -64,6 +64,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.example.doubaoapp.R // Import the R class for resources
+import android.net.Uri // Import Uri for image selection
+import androidx.activity.compose.rememberLauncherForActivityResult // Import for activity result launcher
+import androidx.compose.material3.TextButton // Import TextButton for the new button
+import coil.compose.rememberAsyncImagePainter // Import coil for image loading
+import androidx.compose.material3.MaterialTheme
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
@@ -84,7 +89,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         cameraExecutor = Executors.newSingleThreadExecutor()
         tts = TextToSpeech(this, this)
         setContent {
-            AppContent()
+            AppContent(this)
         }
     }
     
@@ -108,32 +113,53 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
     @OptIn(ExperimentalComposeUiApi::class)
     @Composable
-    fun AppContent() {
+    fun AppContent(activity: MainActivity) {
         var isRecording by remember { mutableStateOf(false) }
         var description by remember { mutableStateOf("描述将显示在这里...") }
-        var permissionState by remember { mutableStateOf(allPermissionsGranted()) }
+        var permissionState by remember { mutableStateOf(activity.allPermissionsGranted()) }
         var isProcessing by remember { mutableStateOf(false) }
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
+        var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
         val permissionLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions()
         ) { permissions ->
             permissionState = permissions.all { it.value } &&
-                              ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED // Also check for WRITE_EXTERNAL_STORAGE
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
             if (!permissionState) {
                 description = "权限请求失败，请授予摄像头、麦克风和存储权限"
             }
         }
 
+        val imagePickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let {
+                try {
+                    val inputStream = context.contentResolver.openInputStream(it)
+                    val size = inputStream?.available() ?: 0
+                    inputStream?.close()
+                    
+                    // 限制图片大小为 5MB
+                    if (size > 5 * 1024 * 1024) {
+                        description = "图片大小不能超过5MB"
+                    } else {
+                        selectedImageUri = it
+                    }
+                } catch (e: Exception) {
+                    description = "图片处理失败: ${e.message}"
+                }
+            }
+        }
+
         LaunchedEffect(Unit) {
-            val neededPermissions = mutableListOf(*permissions)
-            // Add WRITE_EXTERNAL_STORAGE if needed for saving video
+            val neededPermissions = mutableListOf(*activity.permissions)
             if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
                 neededPermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
 
-            if (!allPermissionsGranted()) {
+            if (!activity.allPermissionsGranted()) {
                 permissionLauncher.launch(neededPermissions.toTypedArray())
             }
         }
@@ -144,49 +170,74 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 .background(Color.Black)
         ) {
             // Top Section: Logo and Camera Preview
-            // Using a Box here allows them to be positioned relative to each other or overlaid
             Box(modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.7f) // Give the top section up to 70% of the height
-                .align(Alignment.TopCenter) // Align this box to the top
+                .fillMaxHeight(0.7f)
+                .align(Alignment.TopCenter)
             ) {
-                // Logo (Red Area - Top Center within this top Box)
-                Image(
-                    painter = painterResource(id = R.drawable.logo),
-                    contentDescription = "App Logo",
-                    modifier = Modifier
-                        .size(200.dp) // Set a reasonable size
-                        .align(Alignment.Center) // Align to the center of the top Box
-                        .padding(top = 40.dp) // Adjust padding
+                // Logo
+                val painter = rememberAsyncImagePainter(
+                    model = selectedImageUri ?: R.drawable.logo
                 )
 
-                // Camera Preview (Blue Area - Top Right within this top Box)
+                Image(
+                    painter = painter,
+                    contentDescription = "App Logo",
+                    modifier = Modifier
+                        .size(200.dp)
+                        .align(Alignment.Center)
+                        .padding(top = 40.dp)
+                )
+
+                Button(
+                    onClick = {
+                        imagePickerLauncher.launch("image/*")
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFF5722)
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 8.dp
+                    )
+                ) {
+                    Text(
+                        "替换logo",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+
+                // Camera Preview
                 CameraPreview(
                     modifier = Modifier
-                        .size(120.dp, 160.dp) // Fixed size
-                        .align(Alignment.TopEnd) // Align to the top right of the top Box
-                        .padding(top = 8.dp, end = 8.dp), // Position with padding
+                        .size(120.dp, 160.dp)
+                        .align(Alignment.TopEnd)
+                        .padding(top = 8.dp, end = 8.dp),
                     onCameraError = { error ->
                         description = "摄像头错误: $error"
                     }
                 )
             }
 
-            // Bottom content (Yellow and Green Areas)
+            // Bottom content
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.3f) // Give the bottom section up to 30% of the height
-                    .align(Alignment.BottomCenter) // Explicitly align to the bottom of the main Box
-                    .padding(16.dp), // Add padding around the column content
+                    .fillMaxHeight(0.3f)
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp) // Space between description and button
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Description Card (Yellow Area)
+                // Description Card
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f), // Allow the card to take available space in the column
+                        .weight(1f),
                     colors = CardDefaults.cardColors(
                         containerColor = Color(0xFF1E1E1E)
                     ),
@@ -225,46 +276,43 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     modifier = Modifier
                         .fillMaxWidth()
                         .pointerInteropFilter { event ->
-                        when (event.action) {
-                            MotionEvent.ACTION_DOWN -> {
+                            when (event.action) {
+                                MotionEvent.ACTION_DOWN -> {
                                     if (permissionState && !isRecordingInProgress && !isProcessing) {
-                                    isRecording = true
+                                        isRecording = true
                                         isRecordingInProgress = true
-                                    description = "正在录制..."
-                                    try {
-                                        startRecording()
-                                    } catch (e: Exception) {
-                                        description = "录制失败: ${e.message}"
-                                        isRecording = false
+                                        description = "正在录制..."
+                                        try {
+                                            activity.startRecording()
+                                        } catch (e: Exception) {
+                                            description = "录制失败: ${e.message}"
+                                            isRecording = false
                                             isRecordingInProgress = false
-                                    }
+                                        }
                                     } else if (!permissionState) {
-                                    description = "请授予摄像头和麦克风权限"
-                                        // Launch permissions again if needed
-                                        val neededPermissions = mutableListOf(*permissions)
+                                        description = "请授予摄像头和麦克风权限"
+                                        val neededPermissions = mutableListOf(*activity.permissions)
                                         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
                                             neededPermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                                         }
                                         permissionLauncher.launch(neededPermissions.toTypedArray())
-                                }
-                                true
-                            }
-                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                                if (isRecording) {
-                                    isRecording = false
-                                        // isRecordingInProgress will be set to false in stopRecording after finalize
-                                        isProcessing = true
-                                    stopRecording { newDescription ->
-                                        description = newDescription
                                     }
-                                        // 5秒后自动获取描述
+                                    true
+                                }
+                                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                    if (isRecording) {
+                                        isRecording = false
+                                        isProcessing = true
+                                        activity.stopRecording { newDescription ->
+                                            description = newDescription
+                                        }
                                         scope.launch {
                                             delay(5000)
-                                            getDescription { newDescription ->
+                                            activity.getDescription { newDescription ->
                                                 description = newDescription
-                                                speak(newDescription) // Speak the description
+                                                activity.speak(newDescription)
                                                 isProcessing = false
-                                                isRecordingInProgress = false // Reset recording state
+                                                isRecordingInProgress = false
                                             }
                                         }
                                     }
@@ -435,7 +483,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         api.getVideoDescription().enqueue(object : Callback<ResponseData> {
             override fun onResponse(call: Call<ResponseData>, response: Response<ResponseData>) {
                 if (response.isSuccessful && response.body() != null) {
-                    onDescriptionUpdated(response.body()!!.description ?: "无描述")
+                    val description = response.body()!!.description ?: "无描述"
+                    onDescriptionUpdated(description)
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "未知错误"
                     onDescriptionUpdated("获取描述失败: ${response.code()} - $errorBody")
